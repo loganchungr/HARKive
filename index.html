@@ -61,17 +61,17 @@ select,button{font:inherit;color:var(--ink);background:var(--panel);border:1px d
 <script>
 // EDIT ME: put your real pages in "url". Leave url empty for a placeholder.
 const SEASONS = [
-  { label: "Season 1 - 2015", url: "" },
-  { label: "Season 2 - 2016", url: "" },
-  { label: "Season 3 - A VERY GAS STATION CHRISTMAS", url: "" },
-  { label: "Season 4 - A VERY GAS STATION CHRISTMAS II", url: "" },
-  { label: "Season 5 - 2019", url: "" },
-  { label: "Season 6 - THE SLIDESHOW", url: "" },
-  { label: "Season 7 - THE SLIDESHOW II", url: "" },
-  { label: "Season 8 - DETOX", url: "" },
-  { label: "Season 9 - SLUMBER", url: "" },
-  { label: "Season X - THE UNKNOWN", url: "" },
   { label: "Season 11 - TABULA RASA", url: "" },
+  { label: "Season X - THE UNKNOWN", url: "" },
+  { label: "Season 9 - SLUMBER", url: "" },
+  { label: "Season 8 - DETOX", url: "" },
+  { label: "Season 7 - THE SLIDESHOW II", url: "" },
+  { label: "Season 6 - THE SLIDESHOW", url: "" },
+  { label: "Season 5 - 2019", url: "" },
+  { label: "Season 4 - A VERY GAS STATION CHRISTMAS II", url: "" },
+  { label: "Season 3 - A VERY GAS STATION CHRISTMAS", url: "" },
+  { label: "Season 2 - 2016", url: "" },
+  { label: "Season 1 - 2015", url: "" },
 
 ];
 
@@ -84,7 +84,7 @@ function effTheme(){
   return root.getAttribute("data-theme") ||
     (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 }
-function paintToggle(){ $("theme").textContent = effTheme()==="dark" ? "[ * light mode ]" : "[ ) dark mode ]"; }
+function paintToggle(){ $("theme").textContent = effTheme()==="dark" ? "[ ☼ light mode ]" : "[ ☽ dark mode ]"; }
 try { const t = localStorage.getItem("hearth-theme"); if (t) root.setAttribute("data-theme", t); } catch(e){}
 $("theme").addEventListener("click", () => {
   const t = effTheme()==="dark" ? "light" : "dark";
