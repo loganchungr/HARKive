@@ -21,6 +21,8 @@ select,button{font:inherit;color:var(--ink);background:var(--panel);border:1px d
 .row{display:grid;grid-template-columns:6ch 1fr 6ch}
 .side{position:relative;overflow:hidden;color:var(--brick)}
 .side pre{position:absolute;top:0;left:0}
+.arrow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);padding:14px 4px;background:var(--panel);border:1px solid var(--ink);color:var(--ink)}
+.arrow:disabled{opacity:.85;border-style:dashed;cursor:default}
 .mid{position:relative}
 .view{aspect-ratio:4/3;outline:1px dashed var(--ink)}
 .view iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
@@ -45,9 +47,9 @@ select,button{font:inherit;color:var(--ink);background:var(--panel);border:1px d
   <pre class="stone" id="top"></pre>
   <pre class="brick" id="bricks1"></pre>
   <div class="row">
-    <div class="side"><pre id="sl"></pre></div>
+    <div class="side"><pre id="sl"></pre><button id="prev" class="arrow" type="button" title="Previous file" aria-label="Previous file">[&lt;]</button></div>
     <div class="mid view"><iframe id="frame" title="Season content"></iframe></div>
-    <div class="side"><pre id="sr"></pre></div>
+    <div class="side"><pre id="sr"></pre><button id="next" class="arrow" type="button" title="Next file" aria-label="Next file">[&gt;]</button></div>
   </div>
   <div class="row">
     <div class="side"><pre id="bl"></pre></div>
@@ -59,20 +61,26 @@ select,button{font:inherit;color:var(--ink);background:var(--panel);border:1px d
 <span class="cw" id="cw">MMMMMMMMMM</span>
 
 <script>
-// EDIT ME: put your real pages in "url". Leave url empty for a placeholder.
+// EDIT ME: paste Google Drive share links (one per line) into each season's `files`.
+// Optional title:  Opening night | https://drive.google.com/file/d/XXXX/view
+// In Drive, each file must be shared as "Anyone with the link can view".
+// YouTube links work too. Empty seasons show a placeholder.
 const SEASONS = [
-  { label: "11 - TABULA RASA", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
-  { label: "X - THE UNKNOWN", url: "" },
-  { label: "9 - SLUMBER", url: "" },
-  { label: "8 - DETOX", url: "" },
-  { label: "7 - THE SLIDESHOW II", url: "" },
-  { label: "6 - THE SLIDESHOW", url: "" },
-  { label: "5 - WHAT IF THIS WAS THE LAST CHRISTMAS EVER?", url: "" },
-  { label: "4 - A VERY GAS STATION CHRISTMAS II", url: "" },
-  { label: "3 - A VERY GAS STATION CHRISTMAS", url: "" },
-  { label: "2 - 2016", url: "" },
-  { label: "1 - 2015", url: "" },
-
+  { label: "11 - TABULA RASA", files: `
+    ROSS COLLIER | https://drive.google.com/file/d/1PWpNLkSj1o3N7H7HnwgKlG9MXhn2WFtI/view?usp=sharing
+    JANE & XTIAN, PT 1 | https://drive.google.com/file/d/1n2ZzRmh1f20S9vwQb5mx89U7Cz_QITy7/view?usp=sharing
+    https://www.youtube.com/watch?v=dQw4w9WgXcQ
+  ` },
+  { label: "X - THE UNKNOWN", files: `` },
+  { label: "9 - SLUMBER", files: `` },
+  { label: "8 - DETOX", files: `` },
+  { label: "7 - THE SLIDESHOW II", files: `` },
+  { label: "6 - THE SLIDESHOW", files: `` },
+  { label: "5 - WHAT IF THIS WAS THE LAST CHRISTMAS EVER?", files: `` },
+  { label: "4 - A VERY GAS STATION CHRISTMAS II", files: `` },
+  { label: "3 - A VERY GAS STATION CHRISTMAS", files: `` },
+  { label: "2 - 2016", files: `` },
+  { label: "1 - 2015", files: `` },
 ];
 
 const $ = id => document.getElementById(id);
@@ -128,20 +136,60 @@ function flicker(){
   $("flames").innerHTML = a+"\n"+b+"\n<span class='log'>"+log+"</span>";
 }
 
-// ---------- iframe ----------
-const sel = $("season"), frame = $("frame");
-SEASONS.forEach((s,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=s.label; sel.appendChild(o); });
-function load(i){
-  const s = SEASONS[i];
-  if (s.url){ frame.removeAttribute("srcdoc"); frame.src = s.url; return; }
+// ---------- media ----------
+const sel = $("season"), fsel = $("file"), frame = $("frame"); // fsel is optional
+let files = [], cur = 0;
+
+function parseFiles(txt){
+  return txt.split("\n").map(l => l.trim()).filter(Boolean).map((l,i) => {
+    const p = l.split("|"), url = p.pop().trim();
+    return { title: p.join("|").trim() || "File " + (i+1), url };
+  });
+}
+function toEmbed(url){
+  let m;
+  if (/drive\.google\.com/.test(url) && (m = url.match(/\/file\/d\/([\w-]+)/) || url.match(/[?&]id=([\w-]+)/)))
+    return "https://drive.google.com/file/d/" + m[1] + "/preview";
+  if ((m = url.match(/youtube\.com\/watch\?(?:.*&)?v=([\w-]+)/) || url.match(/youtu\.be\/([\w-]+)/)))
+    return "https://www.youtube.com/embed/" + m[1];
+  return url;
+}
+function placeholder(msg){
   const cs = getComputedStyle(root);
   frame.removeAttribute("src");
-  frame.srcdoc = `<body style="margin:0;display:grid;place-items:center;height:100vh;background:${cs.getPropertyValue("--bg")};color:${cs.getPropertyValue("--ink")};font-family:'Courier New',monospace;text-align:center"><pre>+-----------------------+\n|  ${s.label}\n|  (add a url for this) |\n+-----------------------+</pre></body>`;
+  frame.srcdoc = `<body style="margin:0;display:grid;place-items:center;height:100vh;background:${cs.getPropertyValue("--bg")};color:${cs.getPropertyValue("--ink")};font-family:'Courier New',monospace;text-align:center"><pre>+-----------------------+\n|  ${SEASONS[sel.value].label}\n|  ${msg}\n+-----------------------+</pre></body>`;
 }
-function reloadIfPlaceholder(){ if (!SEASONS[sel.value].url) load(sel.value); }
-sel.addEventListener("change", ()=>load(sel.value));
+function showFile(k){
+  if (!files.length){ placeholder("(no files yet)"); return; }
+  cur = k;
+  if (fsel) fsel.value = k;
+  frame.removeAttribute("srcdoc");
+  frame.src = toEmbed(files[k].url);
+}
+function setSeason(i){
+  files = parseFiles(SEASONS[i].files || "");
+  if (fsel){
+    fsel.innerHTML = "";
+    files.forEach((f,k) => {
+      const o = document.createElement("option");
+      o.value = k; o.textContent = (k+1) + "/" + files.length + "  " + f.title;
+      fsel.appendChild(o);
+    });
+    fsel.disabled = !files.length;
+  }
+  $("prev").disabled = $("next").disabled = files.length < 2;
+  showFile(0);
+}
+function step(d){ showFile((cur + d + files.length) % files.length); }
+function reloadIfPlaceholder(){ if (!files.length) showFile(0); }
 
-paintToggle(); build(); load(0);
+SEASONS.forEach((s,i) => { const o = document.createElement("option"); o.value = i; o.textContent = s.label; sel.appendChild(o); });
+sel.addEventListener("change", () => setSeason(sel.value));
+if (fsel) fsel.addEventListener("change", () => showFile(+fsel.value));
+$("prev").addEventListener("click", () => step(-1));
+$("next").addEventListener("click", () => step(1));
+
+paintToggle(); build(); setSeason(0);
 addEventListener("resize", build);
 if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(flicker, 250);
 </script>
