@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Hearth</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f1e8d4;--ink:#3a2a1d;--brick:#9a4a34;--flame:#d9560b;--log:#6b4a2a;--panel:#e4d7b8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0a07;--ink:#e8c58a;--brick:#a8472f;--flame:#ff9a2e;--log:#8a5a30;--panel:#1c130d}}
+:root[data-theme="dark"]{--bg:#0e0a07;--ink:#e8c58a;--brick:#a8472f;--flame:#ff9a2e;--log:#8a5a30;--panel:#1c130d}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.2 "Courier New",Courier,monospace;display:flex;flex-direction:column;align-items:center;padding:16px}
+pre{margin:0;font:inherit;white-space:pre}
+h1{font:inherit;font-size:16px;margin:0 0 10px;white-space:pre}
+.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+select,button{font:inherit;color:var(--ink);background:var(--panel);border:1px dashed var(--ink);border-radius:0;padding:5px 8px;cursor:pointer}
+.fp{margin:0 auto}
+.row{display:grid;grid-template-columns:6ch 1fr 6ch}
+.side{position:relative;overflow:hidden;color:var(--brick)}
+.side pre{position:absolute;top:0;left:0}
+.mid{position:relative}
+.view{aspect-ratio:4/3;outline:1px dashed var(--ink)}
+.view iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+.brick{color:var(--brick)}
+#flames{color:var(--flame);height:3.6em;overflow:hidden;text-align:center}
+#flames .log{color:var(--log)}
+.stone{color:var(--ink)}
+.cw{position:absolute;visibility:hidden}
+</style>
+</head>
+<body>
+<h1 id="title"></h1>
+<div class="bar">
+  <label for="season">gather round:</label>
+  <select id="season"></select>
+  <button id="theme" type="button"></button>
+</div>
+
+<div class="fp" id="fp">
+  <pre class="stone" id="top"></pre>
+  <pre class="brick" id="bricks1"></pre>
+  <div class="row">
+    <div class="side"><pre id="sl"></pre></div>
+    <div class="mid view"><iframe id="frame" title="Season content"></iframe></div>
+    <div class="side"><pre id="sr"></pre></div>
+  </div>
+  <div class="row">
+    <div class="side"><pre id="bl"></pre></div>
+    <pre id="flames"></pre>
+    <div class="side"><pre id="br"></pre></div>
+  </div>
+  <pre class="stone" id="hearth"></pre>
+</div>
+<span class="cw" id="cw">MMMMMMMMMM</span>
+
+<script>
+// EDIT ME: put your real pages in "url". Leave url empty for a placeholder.
+const SEASONS = [
+  { label: "Season 1 - 2022", url: "" },
+  { label: "Season 2 - 2023", url: "" },
+  { label: "Season 3 - 2024", url: "" },
+  { label: "Season 4 - 2025", url: "" },
+  { label: "Season 5 - 2026", url: "" }
+];
+
+const $ = id => document.getElementById(id);
+const root = document.documentElement;
+let N = 60, M = 48;
+
+// ---------- theme ----------
+function effTheme(){
+  return root.getAttribute("data-theme") ||
+    (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+}
+function paintToggle(){ $("theme").textContent = effTheme()==="dark" ? "[ * light mode ]" : "[ ) dark mode ]"; }
+try { const t = localStorage.getItem("hearth-theme"); if (t) root.setAttribute("data-theme", t); } catch(e){}
+$("theme").addEventListener("click", () => {
+  const t = effTheme()==="dark" ? "light" : "dark";
+  root.setAttribute("data-theme", t);
+  try { localStorage.setItem("hearth-theme", t); } catch(e){}
+  paintToggle(); reloadIfPlaceholder();
+});
+
+// ---------- ascii building ----------
+const rep = (c,n) => c.repeat(Math.max(0,n));
+function bricks(w, rows, start=0){
+  let out = [];
+  for (let r=0;r<rows;r++){
+    const s = "[##]".repeat(Math.ceil(w/4)+2);
+    const k = ((r+start)%2)*2;
+    out.push(s.slice(k,k+w));
+  }
+  return out.join("\n");
+}
+function build(){
+  const cw = $("cw").getBoundingClientRect().width/10;
+  N = Math.max(40, Math.min(96, Math.floor((document.body.clientWidth-32)/cw)));
+  M = N-12;
+  $("fp").style.width = N+"ch";
+  $("title").textContent = "~~ ( T H E   H E A R T H ) ~~";
+  $("top").textContent = " "+rep("_",N-2)+" \n|"+rep("=",N-2)+"|\n|"+rep("_",N-2)+"|";
+  $("bricks1").textContent = bricks(N,2);
+  $("sl").textContent = $("sr").textContent = bricks(6,90,0);
+  $("bl").textContent = $("br").textContent = bricks(6,3,0);
+  $("hearth").textContent = "|"+rep("_",N-2)+"|\n|"+rep("_",N-2)+"|\n"+rep("'",N);
+  flicker();
+}
+function flicker(){
+  const pick = s => s[Math.floor(Math.random()*s.length)];
+  let a="", b="";
+  for (let i=0;i<M;i++){
+    a += Math.random()<.35 ? pick(")(^'`*") : " ";
+    b += Math.random()<.7 ? pick("()/\\)(&") : " ";
+  }
+  const log = "=OO==OO=".repeat(Math.ceil(M/8)).slice(0,M);
+  $("flames").innerHTML = a+"\n"+b+"\n<span class='log'>"+log+"</span>";
+}
+
+// ---------- iframe ----------
+const sel = $("season"), frame = $("frame");
+SEASONS.forEach((s,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=s.label; sel.appendChild(o); });
+function load(i){
+  const s = SEASONS[i];
+  if (s.url){ frame.removeAttribute("srcdoc"); frame.src = s.url; return; }
+  const cs = getComputedStyle(root);
+  frame.removeAttribute("src");
+  frame.srcdoc = `<body style="margin:0;display:grid;place-items:center;height:100vh;background:${cs.getPropertyValue("--bg")};color:${cs.getPropertyValue("--ink")};font-family:'Courier New',monospace;text-align:center"><pre>+-----------------------+\n|  ${s.label}\n|  (add a url for this) |\n+-----------------------+</pre></body>`;
+}
+function reloadIfPlaceholder(){ if (!SEASONS[sel.value].url) load(sel.value); }
+sel.addEventListener("change", ()=>load(sel.value));
+
+paintToggle(); build(); load(0);
+addEventListener("resize", build);
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(flicker, 250);
+</script>
+</body>
+</html>
